@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"path/filepath"
 	"redis-project/internal/domain/entity"
 	"redis-project/internal/domain/repository"
 	"sync"
@@ -101,12 +102,13 @@ func (s *Store) TTL(ctx context.Context, key string) int64 {
 	defer s.mu.RUnlock()
 
 	item, exists := s.data[key]
+	now := time.Now().Unix()
 
 	if !exists {
 		return -2
 	}
 
-	if item.IsExpired(time.Now().Unix()) {
+	if item.IsExpired(now) {
 		return -2
 	}
 
@@ -114,36 +116,126 @@ func (s *Store) TTL(ctx context.Context, key string) int64 {
 		return -1
 	}
 
-	now := time.Now().Unix()
-	remaining := *item.ExpiresAt - now
-
-	if remaining <= 0 {
-		return -2
-	}
-
-	return remaining
-}
-
-func (s *Store) Exists(ctx context.Context, key string) bool {
-	panic("unimplemented")
-}
-
-func (s *Store) Keys(ctx context.Context, pattern string) []string {
-	panic("unimplemented")
+	return *item.ExpiresAt - now
 }
 
 func (s *Store) Persist(ctx context.Context, key string) bool {
-	panic("unimplemented")
+	if ctx.Err() != nil {
+		return false
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	item, exists := s.data[key]
+
+	if !exists {
+		return false
+	}
+
+	item.ExpiresAt = nil
+
+	return true
+}
+
+func (s *Store) Keys(ctx context.Context, pattern string) []string {
+	if ctx.Err() != nil {
+		return []string{}
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	now := time.Now().Unix()
+	var matches []string
+
+	for key, item := range s.data {
+		if item.IsExpired(now) {
+			continue
+		}
+
+		if matchPattern(key, pattern) {
+			matches = append(matches, key)
+		}
+
+	}
+
+	return matches
+}
+
+func (s *Store) Exists(ctx context.Context, key string) bool {
+	if ctx.Err() != nil {
+		return false
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	item, exists := s.data[key]
+
+	if !exists {
+		return false
+	}
+
+	return !item.IsExpired(time.Now().Unix())
 }
 
 func (s *Store) Size(ctx context.Context) int {
-	panic("unimplemented")
+	if ctx.Err() != nil {
+		return 0
+	}
+
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return len(s.data)
 }
 
 func (s *Store) StartCleanup(intervalMs int64) {
-	panic("unimplemented")
+	interval := time.Duration(intervalMs) * time.Millisecond
+
+	go func() {
+		ticker := time.NewTicker(interval)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+				s.CleanupExpired()
+			case <-s.stopCleanUp:
+				return
+			}
+
+		}
+	}()
 }
 
 func (s *Store) StopCleanup() {
-	panic("unimplemented")
+	close(s.stopCleanUp)
+}
+
+func (s *Store) CleanupExpired() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := time.Now().Unix()
+	for key, item := range s.data {
+		if item.IsExpired(now) {
+			delete(s.data, key)
+		}
+	}
+}
+
+func matchPattern(key, pattern string) bool {
+	if pattern == "*" {
+		return true
+	}
+
+	matched, err := filepath.Match(pattern, key)
+
+	if err != nil {
+		return key == pattern
+	}
+
+	return matched
 }
