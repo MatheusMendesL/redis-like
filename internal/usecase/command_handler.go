@@ -33,6 +33,8 @@ func (h *CommandHandler) ExecuteCommand(ctx context.Context, cmd *protocol.Comma
 	switch cmd.Type {
 
 	}
+
+	return ""
 }
 
 func (h *CommandHandler) handleSet(ctx context.Context, args []string) string {
