@@ -20,20 +20,51 @@ func (t Type) String() string {
 	return string(t)
 }
 
-func (t Type) IsValid() bool {
-	switch t {
-	case SET, GET, DEL, EXPIRE, TTL, PERSIST, QUIT, KEYS, EXISTS, PING, INFO:
-		return true
-	default:
-		return false
+func All(write bool) []Type {
+
+	if write {
+		return []Type{
+			SET,
+			DEL,
+			EXPIRE,
+			PERSIST,
+		}
+	}
+	return []Type{
+		SET,
+		GET,
+		DEL,
+		EXPIRE,
+		TTL,
+		PERSIST,
+		QUIT,
+		KEYS,
+		EXISTS,
+		PING,
+		INFO,
 	}
 }
 
-func (t Type) IsWriteCommand() bool {
-	switch t {
-	case SET, DEL, EXPIRE, PERSIST:
-		return true
-	default:
-		return false
+func (t Type) IsValid() bool {
+	for _, cmd := range All(false) {
+		if t == cmd {
+			return true
+		}
 	}
+
+	return false
+
+	// return slices.Contains(All(false), t)
+}
+
+func (t Type) IsWriteCommand() bool {
+	for _, cmd := range All(true) {
+		if t == cmd {
+			return true
+		}
+	}
+
+	return false
+
+	// return slices.Contains(All(true), t)
 }

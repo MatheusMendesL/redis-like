@@ -36,7 +36,7 @@ func (h *CommandHandler) AllFuncs() []func(context.Context, []string) string {
 		h.handleExpire,
 		h.handleTTL,
 		h.handlePersist,
-		nil, 
+		nil,
 		h.handleKeys,
 		h.handleExists,
 		h.handlePing,
@@ -47,7 +47,7 @@ func (h *CommandHandler) AllFuncs() []func(context.Context, []string) string {
 func (h *CommandHandler) ExecuteCommand(ctx context.Context, cmd *protocol.Command) string {
 	h.stats.IncrementCommands()
 
-	types := command.All()
+	types := command.All(false)
 	funcs := h.AllFuncs()
 
 	for i, t := range types {
