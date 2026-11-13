@@ -34,7 +34,7 @@ func (s *Stats) GetInfo(ctx context.Context) string {
 	uptime := time.Since(s.startTime).Seconds()
 	commands := atomic.LoadInt64(&s.totalCommands)
 	connections := atomic.LoadInt64(&s.totalConnections)
-	dbSize := s.keyspace.Size(ctx)
+	dbSize, _ := s.keyspace.Size(ctx)
 
 	info := fmt.Sprintf(`# Server
 redis_version:redis-like-go/1.0.0
