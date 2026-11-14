@@ -5,7 +5,7 @@ import "context"
 type KeyValueRepository interface {
 	Set(ctx context.Context, key string, value string) error
 	Get(ctx context.Context, key string) (string, bool, error)
-	Delete(ctx context.Context, key string) (int, error)
+	Delete(ctx context.Context, key string) int
 	Expire(ctx context.Context, key string, seconds int) (bool, error)
 	TTL(ctx context.Context, key string) (int64, error)
 	Persist(ctx context.Context, key string) (bool, error)
