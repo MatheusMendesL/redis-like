@@ -60,9 +60,9 @@ func (s *Store) Get(ctx context.Context, key string) (string, bool, error) {
 	return item.Value, true, nil
 }
 
-func (s *Store) Delete(ctx context.Context, key string) (int, error) {
+func (s *Store) Delete(ctx context.Context, key string) int {
 	if err := ctx.Err(); err != nil {
-		return 0, domainerrors.ErrContextCanceled
+		return 0
 	}
 
 	s.mu.Lock()
@@ -71,11 +71,11 @@ func (s *Store) Delete(ctx context.Context, key string) (int, error) {
 	item, exists := s.data[key]
 
 	if !exists || item.IsExpired(time.Now().Unix()) {
-		return 0, nil
+		return 0
 	}
 
 	delete(s.data, key)
-	return 1, nil
+	return 1
 }
 
 func (s *Store) Expire(ctx context.Context, key string, seconds int) (bool, error) {
