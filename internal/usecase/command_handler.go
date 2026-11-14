@@ -71,20 +71,27 @@ func (h *CommandHandler) handleSet(ctx context.Context, args []string) string {
 
 	key := args[0]
 	value := strings.Join(args[1:], " ")
-	_ = h.store.Set(ctx, key, value)
+	if err := h.store.Set(ctx, key, value); err != nil {
+		return h.parser.FormatError(err.Error())
+	}
 
 	if h.persist != nil {
-		h.persist.Append(ctx, []string{command.SET.String()}, args)
+		if err := h.persist.Append(ctx, []string{command.SET.String()}, args); err != nil {
+			return h.parser.FormatError(err.Error())
+		}
 	}
 	return h.parser.FormatOK()
 }
 
 func (h *CommandHandler) handleGet(ctx context.Context, args []string) string {
-	if len(args) != 2 {
+	if len(args) != 1 {
 		return h.parser.FormatError("GET requires at least 1 arguments")
 	}
 
-	value, found, _ := h.store.Get(ctx, args[0])
+	value, found, err := h.store.Get(ctx, args[0])
+	if err != nil {
+		return h.parser.FormatError(err.Error())
+	}
 
 	if found {
 		return value
@@ -104,7 +111,9 @@ func (h *CommandHandler) handleDel(ctx context.Context, args []string) string {
 
 	if h.persist != nil && count > 0 {
 		for _, key := range args {
-			h.persist.Append(ctx, []string{command.DEL.String()}, []string{key})
+			if err := h.persist.Append(ctx, []string{command.DEL.String()}, []string{key}); err != nil {
+				return h.parser.FormatError(err.Error())
+			}
 		}
 	}
 
@@ -118,7 +127,11 @@ func (h *CommandHandler) handleExists(ctx context.Context, args []string) string
 
 	count := 0
 	for _, keys := range args {
-		if _, err := h.store.Exists(ctx, keys); err == nil {
+		exists, err := h.store.Exists(ctx, keys)
+		if err != nil {
+			return h.parser.FormatError(err.Error())
+		}
+		if exists {
 			count++
 		}
 	}
@@ -127,8 +140,8 @@ func (h *CommandHandler) handleExists(ctx context.Context, args []string) string
 }
 
 func (h *CommandHandler) handleExpire(ctx context.Context, args []string) string {
-	if len(args) != 1 {
-		return h.parser.FormatError("EXPIRE requires at least 1 arguments")
+	if len(args) != 2 {
+		return h.parser.FormatError("EXPIRE requires 2 arguments")
 	}
 
 	key := args[0]
@@ -141,12 +154,14 @@ func (h *CommandHandler) handleExpire(ctx context.Context, args []string) string
 	success, err := h.store.Expire(ctx, key, seconds)
 
 	if err != nil {
-		return "err"
+		return h.parser.FormatError(err.Error())
 	}
 
 	if success {
 		if h.persist != nil {
-			h.persist.Append(ctx, []string{command.EXPIRE.String()}, []string{key})
+			if err := h.persist.Append(ctx, []string{command.EXPIRE.String()}, []string{key}); err != nil {
+				return h.parser.FormatError(err.Error())
+			}
 		}
 		return h.parser.FormatOK()
 	}
@@ -162,12 +177,14 @@ func (h *CommandHandler) handlePersist(ctx context.Context, args []string) strin
 	success, err := h.store.Persist(ctx, args[0])
 
 	if err != nil {
-		return "err"
+		return h.parser.FormatError(err.Error())
 	}
 
 	if success {
 		if h.persist != nil {
-			h.persist.Append(ctx, []string{command.PERSIST.String()}, []string{args[0]})
+			if err := h.persist.Append(ctx, []string{command.PERSIST.String()}, []string{args[0]}); err != nil {
+				return h.parser.FormatError(err.Error())
+			}
 		}
 		return h.parser.FormatOK()
 	}
@@ -182,20 +199,48 @@ func (h *CommandHandler) handleTTL(ctx context.Context, args []string) string {
 	ttl, err := h.store.TTL(ctx, args[0])
 
 	if err != nil {
-		return "err"
+		return h.parser.FormatError(err.Error())
 	}
 
 	return h.parser.FormatResponse(ttl)
 }
 
 func (h *CommandHandler) handleKeys(ctx context.Context, args []string) string {
-	return ""
+	pattern := "*"
+
+	if len(args) > 0 {
+		pattern = args[0]
+	}
+
+	keys, err := h.store.Keys(ctx, pattern)
+
+	if err != nil {
+		return h.parser.FormatError(err.Error())
+	}
+
+	if len(keys) == 0 {
+		return ""
+	}
+
+	return strings.Join(keys, " ")
 }
 
 func (h *CommandHandler) handlePing(ctx context.Context, args []string) string {
-	return ""
+	message := "PING"
+
+	if len(args) > 0 {
+		message = strings.Join(args, " ")
+	}
+
+	return message
 }
 
 func (h *CommandHandler) handleInfo(ctx context.Context, args []string) string {
-	return ""
+	stats, err := h.stats.GetInfo(ctx)
+
+	if err != nil {
+		return h.parser.FormatError(err.Error())
+	}
+
+	return stats
 }

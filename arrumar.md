@@ -1,0 +1,1 @@
+# 1. chaves com keyts iguais podem ser criadas

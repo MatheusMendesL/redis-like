@@ -30,11 +30,15 @@ func (s *Stats) IncrementConnections() {
 	atomic.AddInt64(&s.totalConnections, 1)
 }
 
-func (s *Stats) GetInfo(ctx context.Context) string {
+func (s *Stats) GetInfo(ctx context.Context) (string, error) {
 	uptime := time.Since(s.startTime).Seconds()
 	commands := atomic.LoadInt64(&s.totalCommands)
 	connections := atomic.LoadInt64(&s.totalConnections)
-	dbSize, _ := s.keyspace.Size(ctx)
+	dbSize, err := s.keyspace.Size(ctx)
+
+	if err != nil {
+		return "", err
+	}
 
 	info := fmt.Sprintf(`# Server
 redis_version:redis-like-go/1.0.0
@@ -55,5 +59,5 @@ keyspace_misses:0
 db0:keys=%d
 `, uptime, uptime/86400, connections, connections, commands, dbSize)
 
-	return info
+	return info, nil
 }
