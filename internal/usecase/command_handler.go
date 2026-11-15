@@ -159,7 +159,7 @@ func (h *CommandHandler) handleExpire(ctx context.Context, args []string) string
 
 	if success {
 		if h.persist != nil {
-			if err := h.persist.Append(ctx, []string{command.EXPIRE.String()}, []string{key}); err != nil {
+			if err := h.persist.Append(ctx, []string{command.EXPIRE.String()}, args); err != nil {
 				return h.parser.FormatError(err.Error())
 			}
 		}
